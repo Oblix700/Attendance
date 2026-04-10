@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy, where, writeBatch, doc } from 'firebase/firestore';
 import { Attendee } from '@/types';
-import { Search, User, History, Download, Filter, Pencil, X, Check } from 'lucide-react';
+import { Search, User, History, Download, Filter, Pencil, X, Check, Trash2 } from 'lucide-react';
 
 interface GroupedAttendee {
   email: string;
@@ -110,8 +110,32 @@ export default function MasterHistory() {
     }
   };
 
+  const deleteMemberGlobally = async (attendee: GroupedAttendee) => {
+    if (!window.confirm(`⚠️ PERMANENT DELETE: Are you sure you want to delete ${attendee.fullName} and ALL their attendance history? This cannot be undone.`)) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const q = query(collection(db, 'attendees'), where('email', '==', attendee.email.toLowerCase()));
+      const snap = await getDocs(q);
+      const batch = writeBatch(db);
+      
+      snap.docs.forEach(d => {
+        batch.delete(d.ref);
+      });
+      
+      await batch.commit();
+      fetchGlobalData();
+    } catch (error) {
+      console.error(error);
+      alert("Failed to delete member.");
+      setLoading(false);
+    }
+  };
+
   const filteredAttendees = attendees.filter(a => {
-    const matchesSearch = a.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || a.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = a.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || a.email.toLowerCase().includes(searchTerm.toLowerCase()) || (a.rank && a.rank.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesType = selectedType === 'All Events' || a.meetings.some(m => m.name === selectedType);
     return matchesSearch && matchesType;
   });
@@ -122,7 +146,7 @@ export default function MasterHistory() {
         <div style={{ flex: 1, display: 'flex', gap: '1rem', maxWidth: '800px' }}>
           <div style={{ position: 'relative', flex: 2 }}>
             <Search style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} size={18} />
-            <input type="text" placeholder="Search members..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ paddingLeft: '3rem' }} />
+            <input type="text" placeholder="Search by name, rank, or email..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ paddingLeft: '3rem' }} />
           </div>
           <div style={{ position: 'relative', flex: 1 }}>
             <Filter style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} size={16} />
@@ -139,8 +163,8 @@ export default function MasterHistory() {
           <thead>
             <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--glass-border)' }}>
               <th style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>Member Info</th>
-              <th style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>Rank & Company</th>
-              <th style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>Meetings</th>
+              <th style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>Full Details</th>
+              <th style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>Event History</th>
               <th style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>Actions</th>
             </tr>
           </thead>
@@ -153,22 +177,31 @@ export default function MasterHistory() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}><User size={20} /></div>
                     <div>
-                      <div style={{ fontWeight: '600' }}>{a.fullName}</div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{a.email} • {a.mobile}</div>
+                      <div style={{ fontWeight: '600', fontSize: '1.1rem' }}>{a.rank ? `${a.rank} ` : ''}{a.fullName}</div>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--primary)', fontWeight: '500' }}>Representing: {a.company || '-'}</div>
                     </div>
                   </div>
                 </td>
                 <td style={{ padding: '1rem' }}>
-                  <div style={{ fontWeight: '500' }}>{a.rank || '-'}</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{a.company || '-'}</div>
-                </td>
-                <td style={{ padding: '1rem' }}>
-                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    {a.meetings.map(m => <span key={m.id} style={{ padding: '0.2rem 0.5rem', borderRadius: '0.4rem', background: 'var(--input-bg)', fontSize: '0.7rem' }}>{m.name}</span>)}
+                  <div style={{ fontSize: '0.875rem' }}>
+                    <div style={{ color: 'var(--foreground)' }}>Cel No: {a.mobile}</div>
+                    <div style={{ color: 'var(--text-muted)' }}>Email: {a.email}</div>
                   </div>
                 </td>
                 <td style={{ padding: '1rem' }}>
-                  <button onClick={() => setEditingAttendee(a)} className="btn" style={{ background: 'var(--input-bg)', padding: '0.5rem', color: 'var(--primary)' }}><Pencil size={16} /></button>
+                  <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                    {a.meetings.map(m => (
+                      <span key={m.id} style={{ padding: '0.2rem 0.6rem', borderRadius: '0.5rem', background: 'var(--input-bg)', fontSize: '0.7rem', border: '1px solid var(--glass-border)' }}>
+                        {m.name}
+                      </span>
+                    ))}
+                  </div>
+                </td>
+                <td style={{ padding: '1rem' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button onClick={() => setEditingAttendee(a)} className="btn" style={{ background: 'var(--input-bg)', padding: '0.5rem', color: 'var(--primary)', borderRadius: '0.5rem' }} title="Edit Profile"><Pencil size={16} /></button>
+                    <button onClick={() => deleteMemberGlobally(a)} className="btn" style={{ background: 'var(--input-bg)', padding: '0.5rem', color: '#ef4444', borderRadius: '0.5rem' }} title="Delete Member"><Trash2 size={16} /></button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -178,38 +211,38 @@ export default function MasterHistory() {
 
       {/* Edit Modal */}
       {editingAttendee && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem', backdropFilter: 'blur(4px)' }}>
           <div className="glass-card animate-fade-in" style={{ maxWidth: '500px', width: '100%', padding: '2rem', background: 'var(--background)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem', alignItems: 'center' }}>
               <h3>Edit Member Profile</h3>
               <button onClick={() => setEditingAttendee(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={24} /></button>
             </div>
             
-            <div className="input-group">
-              <label>Full Name</label>
-              <input type="text" value={editingAttendee.fullName} onChange={e => setEditingAttendee({...editingAttendee, fullName: e.target.value})} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
+               <div className="input-group">
+                <label>Rank</label>
+                <input type="text" value={editingAttendee.rank || ''} onChange={e => setEditingAttendee({...editingAttendee, rank: e.target.value})} placeholder="Lt Col" />
+              </div>
+              <div className="input-group">
+                <label>Full Name</label>
+                <input type="text" value={editingAttendee.fullName} onChange={e => setEditingAttendee({...editingAttendee, fullName: e.target.value})} placeholder="F Marsau" />
+              </div>
             </div>
             
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <div className="input-group">
-                <label>Mobile Number</label>
-                <input type="tel" value={editingAttendee.mobile} onChange={e => setEditingAttendee({...editingAttendee, mobile: e.target.value})} />
-              </div>
-              <div className="input-group">
-                <label>Rank / Designation</label>
-                <input type="text" value={editingAttendee.rank || ''} onChange={e => setEditingAttendee({...editingAttendee, rank: e.target.value})} />
-              </div>
+            <div className="input-group">
+                <label>Representing</label>
+                <input type="text" value={editingAttendee.company || ''} onChange={e => setEditingAttendee({...editingAttendee, company: e.target.value})} placeholder="Unit / Office" />
             </div>
 
             <div className="input-group">
-              <label>Company / Organization</label>
-              <input type="text" value={editingAttendee.company || ''} onChange={e => setEditingAttendee({...editingAttendee, company: e.target.value})} />
+                <label>Cel No</label>
+                <input type="tel" value={editingAttendee.mobile} onChange={e => setEditingAttendee({...editingAttendee, mobile: e.target.value})} />
             </div>
 
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '2rem' }}>* Editing will update this member across all past and future meetings.</p>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '2rem' }}>* Updates will be applied across all historical records for this member.</p>
 
-            <button onClick={saveProfile} className="btn btn-primary" style={{ width: '100%' }} disabled={isSaving}>
-              {isSaving ? 'Saving Changes...' : <><Check size={18} style={{ marginRight: '0.5rem' }} /> Save Profile</>}
+            <button onClick={saveProfile} className="btn btn-primary" style={{ width: '100%', gap: '0.5rem' }} disabled={isSaving}>
+              {isSaving ? 'Saving...' : <><Check size={18} /> Save Changes</>}
             </button>
           </div>
         </div>

@@ -131,11 +131,11 @@ export default function CheckInPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="input-group">
                   <label>Rank / Designation</label>
-                  <input type="text" value={formData.rank} onChange={e => setFormData({...formData, rank: e.target.value})} placeholder="e.g. Manager" />
+                  <input type="text" value={formData.rank} onChange={e => setFormData({...formData, rank: e.target.value})} placeholder="e.g. Lt Col" />
                 </div>
                 <div className="input-group">
-                  <label>Company (Optional)</label>
-                  <input type="text" value={formData.company} onChange={e => setFormData({...formData, company: e.target.value})} placeholder="Acme Corp" />
+                  <label>Representing (Optional)</label>
+                  <input type="text" value={formData.company} onChange={e => setFormData({...formData, company: e.target.value})} placeholder="e.g. Unit / Office" />
                 </div>
               </div>
 
