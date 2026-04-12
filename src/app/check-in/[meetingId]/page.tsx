@@ -18,6 +18,7 @@ export default function CheckInPage() {
     fullName: '',
     email: '',
     mobile: '',
+    officeTel: '',
     company: '',
     rank: '',
     consent: false
@@ -101,42 +102,47 @@ export default function CheckInPage() {
   if (!meeting && !loading) return <div className="container">Meeting not found.</div>;
 
   return (
-    <div className="container" style={{ maxWidth: '500px', display: 'flex', flexDirection: 'column', minHeight: '100vh', justifyContent: 'center' }}>
+    <div className="container" style={{ maxWidth: '600px', display: 'flex', flexDirection: 'column', minHeight: '100vh', justifyContent: 'center' }}>
       <div className="glass-card animate-fade-in" style={{ padding: '2rem' }}>
         
         {step === 'form' && (
           <>
             <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-              <h1 style={{ fontSize: '1.75rem', marginBottom: '0.5rem' }}>Welcome!</h1>
-              <p style={{ color: 'var(--text-muted)' }}>Check in for <strong>{meeting?.name}</strong></p>
+              <h1 style={{ fontSize: '1.75rem', marginBottom: '0.5rem' }}>Meeting Check-In</h1>
+              <p style={{ color: 'var(--text-muted)' }}>Event: <strong>{meeting?.name}</strong></p>
             </div>
 
             <form onSubmit={checkDuplicate}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
+                <div className="input-group">
+                  <label>Rank</label>
+                  <input type="text" required value={formData.rank} onChange={e => setFormData({...formData, rank: e.target.value})} placeholder="Lt Col" />
+                </div>
+                <div className="input-group">
+                  <label>Initials & Surname</label>
+                  <input type="text" required value={formData.fullName} onChange={e => setFormData({...formData, fullName: e.target.value})} placeholder="F Marsau" />
+                </div>
+              </div>
+
               <div className="input-group">
-                <label>Full Name</label>
-                <input type="text" required value={formData.fullName} onChange={e => setFormData({...formData, fullName: e.target.value})} placeholder="John Doe" />
+                <label>Representing (Unit / Office)</label>
+                <input type="text" required value={formData.company} onChange={e => setFormData({...formData, company: e.target.value})} placeholder="e.g. D AF Log" />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="input-group">
-                  <label>Email</label>
-                  <input type="email" required value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="john@example.com" />
+                  <label>Office Tel</label>
+                  <input type="tel" value={formData.officeTel} onChange={e => setFormData({...formData, officeTel: e.target.value})} placeholder="012..." />
                 </div>
                 <div className="input-group">
-                  <label>Mobile</label>
-                  <input type="tel" required value={formData.mobile} onChange={e => setFormData({...formData, mobile: e.target.value})} placeholder="+27..." />
+                  <label>Cell No</label>
+                  <input type="tel" required value={formData.mobile} onChange={e => setFormData({...formData, mobile: e.target.value})} placeholder="082..." />
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div className="input-group">
-                  <label>Rank / Designation</label>
-                  <input type="text" value={formData.rank} onChange={e => setFormData({...formData, rank: e.target.value})} placeholder="e.g. Lt Col" />
-                </div>
-                <div className="input-group">
-                  <label>Representing (Optional)</label>
-                  <input type="text" value={formData.company} onChange={e => setFormData({...formData, company: e.target.value})} placeholder="e.g. Unit / Office" />
-                </div>
+              <div className="input-group">
+                <label>Email Address</label>
+                <input type="email" required value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="email@address.com" />
               </div>
 
               <div className="input-group" style={{ flexDirection: 'row', alignItems: 'flex-start', gap: '0.75rem', marginTop: '1rem' }}>
@@ -147,7 +153,7 @@ export default function CheckInPage() {
               </div>
 
               <button className="btn btn-primary" style={{ width: '100%', marginTop: '2rem' }} disabled={loading}>
-                {loading ? 'Checking...' : 'Check In Now'}
+                {loading ? 'Checking...' : 'Register Attendance'}
               </button>
             </form>
           </>
@@ -162,9 +168,9 @@ export default function CheckInPage() {
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <button className="btn btn-primary" onClick={markPresent} disabled={loading}>
-                {loading ? 'Processing...' : 'Yes, Mark Me Present'}
+                {loading ? 'Confirm My Attendance' : 'Confirm My Attendance'}
               </button>
-              <button className="btn" style={{ background: 'var(--input-bg)' }} onClick={() => setStep('form')}>No, different details</button>
+              <button className="btn" style={{ background: 'var(--input-bg)' }} onClick={() => setStep('form')}>Nope, different details</button>
             </div>
           </div>
         )}
@@ -172,8 +178,8 @@ export default function CheckInPage() {
         {step === 'success' && (
           <div style={{ textAlign: 'center', padding: '2rem 0' }}>
             <CheckCircle2 size={80} color="var(--success)" style={{ marginBottom: '2rem' }} />
-            <h2 style={{ marginBottom: '0.5rem' }}>See You Inside!</h2>
-            <p style={{ color: 'var(--text-muted)' }}>Successful check-in for {meeting?.name}.</p>
+            <h2 style={{ marginBottom: '0.5rem' }}>Successfully Registered!</h2>
+            <p style={{ color: 'var(--text-muted)' }}>Thank you for attending <strong>{meeting?.name}</strong>.</p>
           </div>
         )}
       </div>
