@@ -4,12 +4,13 @@ import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy, where, writeBatch, doc } from 'firebase/firestore';
 import { Attendee } from '@/types';
-import { Search, User, History, Download, Filter, Pencil, X, Check, Trash2 } from 'lucide-react';
+import { Search, User, History, Download, Filter, Pencil, X, Check, Trash2, Phone, Mail } from 'lucide-react';
 
 interface GroupedAttendee {
   email: string;
   fullName: string;
   mobile: string;
+  officeTel?: string;
   company?: string;
   rank?: string;
   meetings: { id: string, name: string, date: string, timestamp: number }[];
@@ -55,6 +56,7 @@ export default function MasterHistory() {
             email: data.email,
             fullName: data.fullName,
             mobile: data.mobile,
+            officeTel: data.officeTel,
             company: data.company,
             rank: data.rank,
             meetings: [{ id: data.meetingId, name: meetingInfo.name, date: meetingInfo.date, timestamp: data.timestamp }]
@@ -68,6 +70,7 @@ export default function MasterHistory() {
           if (data.timestamp > existing.meetings[0].timestamp) {
             existing.fullName = data.fullName;
             existing.mobile = data.mobile;
+            existing.officeTel = data.officeTel;
             existing.company = data.company;
             existing.rank = data.rank;
           }
@@ -94,6 +97,7 @@ export default function MasterHistory() {
         batch.update(d.ref, {
           fullName: editingAttendee.fullName,
           mobile: editingAttendee.mobile,
+          officeTel: editingAttendee.officeTel || '',
           company: editingAttendee.company || '',
           rank: editingAttendee.rank || ''
         });
@@ -120,11 +124,7 @@ export default function MasterHistory() {
       const q = query(collection(db, 'attendees'), where('email', '==', attendee.email.toLowerCase()));
       const snap = await getDocs(q);
       const batch = writeBatch(db);
-      
-      snap.docs.forEach(d => {
-        batch.delete(d.ref);
-      });
-      
+      snap.docs.forEach(d => batch.delete(d.ref));
       await batch.commit();
       fetchGlobalData();
     } catch (error) {
@@ -140,13 +140,33 @@ export default function MasterHistory() {
     return matchesSearch && matchesType;
   });
 
+  const exportMasterCSV = () => {
+    const headers = ['Ser No', 'Rank', 'Init & Surname', 'Representing', 'Office Tel', 'Cell No', 'Email'];
+    const rows = filteredAttendees.map((a, index) => [
+      index + 1,
+      a.rank || '',
+      a.fullName,
+      a.company || '',
+      a.officeTel || '',
+      a.mobile,
+      a.email
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map(row => row.map(cell => `"${cell}"`).join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `master_register_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+  };
+
   return (
     <div className="animate-fade-in">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', gap: '1rem' }}>
         <div style={{ flex: 1, display: 'flex', gap: '1rem', maxWidth: '800px' }}>
           <div style={{ position: 'relative', flex: 2 }}>
             <Search style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} size={18} />
-            <input type="text" placeholder="Search by name, rank, or email..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ paddingLeft: '3rem' }} />
+            <input type="text" placeholder="Search by name, rank, or unit..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ paddingLeft: '3rem' }} />
           </div>
           <div style={{ position: 'relative', flex: 1 }}>
             <Filter style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} size={16} />
@@ -156,51 +176,43 @@ export default function MasterHistory() {
             </select>
           </div>
         </div>
+        <button className="btn btn-primary" onClick={exportMasterCSV} disabled={attendees.length === 0}>
+           <Download size={18} style={{ marginRight: '0.4rem' }} /> Export Global
+        </button>
       </div>
 
       <div className="glass-card" style={{ padding: '2rem', overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--glass-border)' }}>
-              <th style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>Member Info</th>
-              <th style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>Full Details</th>
-              <th style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>Event History</th>
-              <th style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>Actions</th>
+              <th style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.8rem', width: '60px' }}>Ser No</th>
+              <th style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.8rem', width: '100px' }}>Rank</th>
+              <th style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>Init & Surname</th>
+              <th style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>Representing</th>
+              <th style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>Contact Summary</th>
+              <th style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.8rem', width: '100px' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={4} style={{ padding: '2rem', textAlign: 'center' }}>Syncing global records...</td></tr>
-            ) : filteredAttendees.map((a) => (
+              <tr><td colSpan={6} style={{ padding: '2rem', textAlign: 'center' }}>Syncing...</td></tr>
+            ) : filteredAttendees.map((a, index) => (
               <tr key={a.email} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                <td style={{ padding: '1.5rem 1rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}><User size={20} /></div>
-                    <div>
-                      <div style={{ fontWeight: '600', fontSize: '1.1rem' }}>{a.rank ? `${a.rank} ` : ''}{a.fullName}</div>
-                      <div style={{ fontSize: '0.85rem', color: 'var(--primary)', fontWeight: '500' }}>Representing: {a.company || '-'}</div>
-                    </div>
-                  </div>
+                <td style={{ padding: '1rem', fontWeight: 'bold' }}>{index + 1}</td>
+                <td style={{ padding: '1rem' }}>{a.rank || '-'}</td>
+                <td style={{ padding: '1rem', fontWeight: '600' }}>{a.fullName}</td>
+                <td style={{ padding: '1rem' }}>{a.company || '-'}</td>
+                <td style={{ padding: '1rem' }}>
+                   <div style={{ fontSize: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Phone size={10} /> {a.officeTel} (O) / {a.mobile} (C)</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', opacity: 0.6 }}><Mail size={10} /> {a.email}</div>
+                      <div style={{ opacity: 0.4, marginTop: '0.2rem' }}>Hits: {a.meetings.length}</div>
+                   </div>
                 </td>
                 <td style={{ padding: '1rem' }}>
-                  <div style={{ fontSize: '0.875rem' }}>
-                    <div style={{ color: 'var(--foreground)' }}>Cel No: {a.mobile}</div>
-                    <div style={{ color: 'var(--text-muted)' }}>Email: {a.email}</div>
-                  </div>
-                </td>
-                <td style={{ padding: '1rem' }}>
-                  <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                    {a.meetings.map(m => (
-                      <span key={m.id} style={{ padding: '0.2rem 0.6rem', borderRadius: '0.5rem', background: 'var(--input-bg)', fontSize: '0.7rem', border: '1px solid var(--glass-border)' }}>
-                        {m.name}
-                      </span>
-                    ))}
-                  </div>
-                </td>
-                <td style={{ padding: '1rem' }}>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button onClick={() => setEditingAttendee(a)} className="btn" style={{ background: 'var(--input-bg)', padding: '0.5rem', color: 'var(--primary)', borderRadius: '0.5rem' }} title="Edit Profile"><Pencil size={16} /></button>
-                    <button onClick={() => deleteMemberGlobally(a)} className="btn" style={{ background: 'var(--input-bg)', padding: '0.5rem', color: '#ef4444', borderRadius: '0.5rem' }} title="Delete Member"><Trash2 size={16} /></button>
+                  <div style={{ display: 'flex', gap: '0.4rem' }}>
+                    <button onClick={() => setEditingAttendee(a)} className="btn" style={{ background: 'var(--input-bg)', padding: '0.4rem', color: 'var(--primary)' }} title="Edit"><Pencil size={14} /></button>
+                    <button onClick={() => deleteMemberGlobally(a)} className="btn" style={{ background: 'var(--input-bg)', padding: '0.4rem', color: '#ef4444' }} title="Delete"><Trash2 size={14} /></button>
                   </div>
                 </td>
               </tr>
@@ -209,40 +221,43 @@ export default function MasterHistory() {
         </table>
       </div>
 
-      {/* Edit Modal */}
       {editingAttendee && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem', backdropFilter: 'blur(4px)' }}>
-          <div className="glass-card animate-fade-in" style={{ maxWidth: '500px', width: '100%', padding: '2rem', background: 'var(--background)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem', alignItems: 'center' }}>
-              <h3>Edit Member Profile</h3>
-              <button onClick={() => setEditingAttendee(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={24} /></button>
+          <div className="glass-card animate-fade-in" style={{ maxWidth: '600px', width: '100%', padding: '2rem', background: 'var(--background)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem' }}>
+              <h3>Edit Profile</h3>
+              <button onClick={() => setEditingAttendee(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={20} /></button>
             </div>
             
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
                <div className="input-group">
                 <label>Rank</label>
-                <input type="text" value={editingAttendee.rank || ''} onChange={e => setEditingAttendee({...editingAttendee, rank: e.target.value})} placeholder="Lt Col" />
+                <input type="text" value={editingAttendee.rank || ''} onChange={e => setEditingAttendee({...editingAttendee, rank: e.target.value})} />
               </div>
               <div className="input-group">
-                <label>Full Name</label>
-                <input type="text" value={editingAttendee.fullName} onChange={e => setEditingAttendee({...editingAttendee, fullName: e.target.value})} placeholder="F Marsau" />
+                <label>Initials & Surname</label>
+                <input type="text" value={editingAttendee.fullName} onChange={e => setEditingAttendee({...editingAttendee, fullName: e.target.value})} />
               </div>
             </div>
             
             <div className="input-group">
                 <label>Representing</label>
-                <input type="text" value={editingAttendee.company || ''} onChange={e => setEditingAttendee({...editingAttendee, company: e.target.value})} placeholder="Unit / Office" />
+                <input type="text" value={editingAttendee.company || ''} onChange={e => setEditingAttendee({...editingAttendee, company: e.target.value})} />
             </div>
 
-            <div className="input-group">
-                <label>Cel No</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="input-group">
+                <label>Office Tel</label>
+                <input type="tel" value={editingAttendee.officeTel || ''} onChange={e => setEditingAttendee({...editingAttendee, officeTel: e.target.value})} />
+              </div>
+              <div className="input-group">
+                <label>Cell No</label>
                 <input type="tel" value={editingAttendee.mobile} onChange={e => setEditingAttendee({...editingAttendee, mobile: e.target.value})} />
+              </div>
             </div>
 
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '2rem' }}>* Updates will be applied across all historical records for this member.</p>
-
-            <button onClick={saveProfile} className="btn btn-primary" style={{ width: '100%', gap: '0.5rem' }} disabled={isSaving}>
-              {isSaving ? 'Saving...' : <><Check size={18} /> Save Changes</>}
+            <button onClick={saveProfile} className="btn btn-primary" style={{ width: '100%', gap: '0.5rem', marginTop: '1rem' }} disabled={isSaving}>
+              {isSaving ? 'Processing...' : <><Check size={18} /> Update Global Record</>}
             </button>
           </div>
         </div>

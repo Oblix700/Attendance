@@ -12,6 +12,7 @@ export interface Attendee {
   fullName: string;
   email: string;
   mobile: string;
+  officeTel?: string;
   company?: string;
   rank?: string;
   consent: boolean;
