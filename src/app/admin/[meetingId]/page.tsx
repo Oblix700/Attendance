@@ -108,15 +108,46 @@ export default function MeetingDetails() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '2rem' }}>
         {/* QR Code Segment */}
         <div className="glass-card" style={{ padding: '2rem', textAlign: 'center' }}>
-          <h3 style={{ marginBottom: '1.5rem' }}>Meeting QR Code</h3>
           <div className="qr-container" style={{ marginBottom: '1.5rem' }}>
             <QRCodeSVG value={checkInUrl} size={200} />
           </div>
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
-            Display this on the main screen for attendees to scan.
-          </p>
-          <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.05)', borderRadius: '0.75rem', fontSize: '0.75rem', wordBreak: 'break-all' }}>
-            {checkInUrl}
+          <div style={{ flex: 1 }}>
+            <h3 style={{ marginBottom: '0.5rem' }}>Attendance QR Code</h3>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>Have members scan this QR code or use the invitation tools below:</p>
+            
+            <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(`You are invited to register for: ${meeting?.name}\n\nClick here to sign in: ${checkInUrl}`);
+                  alert("Invitation text copied to clipboard!");
+                }}
+                className="btn" 
+                style={{ flex: 1, background: 'var(--input-bg)', fontSize: '0.8rem', gap: '0.5rem' }}
+              >
+                <Share2 size={16} /> Copy Invite Text
+              </button>
+              
+              <a 
+                href={`mailto:?subject=Attendance Registration for ${meeting?.name}&body=Please register your attendance for our meeting by clicking the link below:%0D%0A%0D%0A${checkInUrl}`}
+                className="btn" 
+                style={{ flex: 1, background: 'var(--input-bg)', color: 'var(--foreground)', fontSize: '0.8rem', gap: '0.5rem', textDecoration: 'none' }}
+              >
+                <Mail size={16} /> Email Invite
+              </a>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem', background: 'var(--input-bg)', borderRadius: '0.75rem', fontSize: '0.75rem', opacity: 0.7 }}>
+              <span style={{ flex: 1, wordBreak: 'break-all' }}>{checkInUrl}</span>
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(checkInUrl);
+                  alert("Link copied!");
+                }}
+                style={{ background: 'transparent', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}
+              >
+                Copy
+              </button>
+            </div>
           </div>
         </div>
 
